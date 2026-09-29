@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LV Pickleball Village | Court Booking</title>
+<link rel="icon" href="/logo.jpg">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="brand">
+    <img src="/logo.jpg" alt="LV Pickleball Village logo">
+    <div><h1>LV Pickleball Village</h1><span>Purok Lapu-lapu Village, Santo Niño, 9506</span></div>
+  </header>
+
+  <div class="card">
+    <span class="badge gold"><i class="dot"></i>NOW BOOKING</span>
+    <h2>LV Pickleball Village Courts</h2>
+    <div class="badges">
+      <span class="badge">7 outdoor courts</span>
+      <span class="badge">Hourly booking</span>
+      <span class="badge">Day ₱150 / Night ₱200</span>
+      <span class="badge">Walk-ins allowed</span>
+    </div>
+    <div class="banner">Tap any available time block to book. You may select multiple courts and hours.</div>
+
+    <h3>Live court availability</h3>
+    <p class="hint">Open 6:00 AM to 12:00 AM. Night rate starts at 6 PM.</p>
+    <div class="datebar">
+      <button id="btnToday" class="active">Today</button>
+      <button id="btnTomorrow">Tomorrow</button>
+      <input type="date" id="pickDate">
+    </div>
+
+    <div class="grid-wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+    <div class="legend">
+      <span><i style="background:var(--gold)"></i>Day rate</span>
+      <span><i style="background:var(--night)"></i>Night rate</span>
+      <span><i style="background:var(--booked)"></i>Booked</span>
+      <span><i style="background:#3a3245"></i>Closed</span>
+    </div>
+
+    <h3 style="margin-top:22px"><i class="dot live"></i>Currently booked, live</h3>
+    <div class="list" id="bookedList">Loading…</div>
+
+    <div class="summary">
+      <div>
+        <div class="row"><span class="k">Date</span><span id="sumDate">—</span></div>
+        <div class="row"><span class="k">Type</span><span>Outdoor</span></div>
+        <div class="row" style="align-items:flex-start"><span class="k">Selected</span><div id="sumSel" style="flex:1;color:var(--sub)">No slots selected</div></div>
+      </div>
+      <div class="rate-box">
+        <div class="row"><span class="k">Rate</span><span id="sumRate">—</span></div>
+        <div class="row"><span class="k">Hours</span><span id="sumHours">0</span></div>
+        <div class="total"><span class="k">Total Amount</span><span class="amt" id="sumTotal">₱0.00</span></div>
+      </div>
+    </div>
+
+    <label>Name<input class="field" id="nameEl" type="text" maxlength="80" placeholder="Your name" autocomplete="name"></label>
+    <label>Contact number<input class="field" id="phoneEl" type="tel" maxlength="30" placeholder="09XX XXX XXXX" autocomplete="tel"></label>
+
+    <div class="card" style="background:var(--panel2);margin:16px 0 0;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0">Payment Method</h3>
+        <span class="badge" style="border-color:#3fae7a;color:#7CD98A">GCASH ONLY</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-weight:700;color:#fff">NE*L ZY****E P.</div>
+          <div style="color:var(--gold);font-weight:600">0949 884 2383</div>
+        </div>
+        <button type="button" class="btn ghost" id="qrToggle">Show QR Code</button>
+      </div>
+      <div id="qrWrap" style="display:none;text-align:center;margin-top:14px">
+        <img src="/gcash-qr.jpg" alt="GCash QR code" style="max-width:220px;width:100%;border-radius:8px">
+      </div>
+      <label style="margin-top:14px">GCash Reference Number<input class="field" id="refEl" type="text" maxlength="40" placeholder="e.g. 1002394820123"></label>
+    </div>
+
+    <div class="warn">Please review your booking details before proceeding.</div>
+    <button class="btn" id="bookBtn" disabled>Confirm booking</button>
+    <div id="msg"></div>
+  </div>
+
+  <div class="card reminders">
+    <h3>Important reminders</h3>
+    <ul>
+      <li>Bookings are per hour, per court.</li>
+      <li>Walk-ins are allowed but must book online.</li>
+      <li>First come, first served.</li>
+      <li>Please arrive at least 15 minutes early.</li>
+    </ul>
+  </div>
+  <div class="foot">© 2026 LV Pickleball Village. All rights reserved.<br><em>Play. Connect. Enjoy.</em></div>
+</div>
+
+<script>
+const COURTS = ["Court 1","Court 2","Court 3","Court 4","Court 5","Court 6","Court 7"];
+const DAY = 150, NIGHT = 200;
+const HOURS = Array.from({length: 18}, (_, i) => i + 6);
+const $ = id => document.getElementById(id);
+const fmt = h => ((h + 11) % 12 + 1) + ":00 " + (h % 24 < 12 ? "AM" : "PM");
+const label = h => fmt(h) + " – " + fmt((h + 1) % 24);
+const peso = n => "₱" + n.toFixed(2);
+
+const manilaToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+const manilaHour = () => Number(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila", hour: "numeric", hour12: false })) % 24;
+const addDay = (s, n) => new Date(new Date(s + "T00:00:00Z").getTime() + n * 86400000).toISOString().slice(0, 10);
+
+let date = manilaToday(), booked = new Set(), sel = [];
+const key = (c, h) => c + "|" + h;
+const isSel = (c, h) => sel.some(s => s.court === c && s.hour === h);
+
+async function load() {
+  try {
+    const r = await fetch("/api/bookings?date=" + date, { cache: "no-store" });
+    if (!r.ok) throw 0;
+    const j = await r.json();
+    booked = new Set(j.booked.map(b => key(b.court, b.hour)));
+    sel = sel.filter(s => !booked.has(key(s.court, s.hour)));
+  } catch (e) {}
+  render();
+}
+
+function render() {
+  const isToday = date === manilaToday();
+  const nowH = manilaHour();
+  $("thead").innerHTML = "<tr><th>Time</th>" + COURTS.map(c => "<th>" + c + "</th>").join("") + "</tr>";
+  $("tbody").innerHTML = HOURS.map(h => {
+    const night = h >= 18;
+    const closed = isToday && h < nowH;
+    const cells = COURTS.map(c => {
+      const b = booked.has(key(c, h));
+      const cls = "slot" + (night ? " night" : "") + (b ? " booked" : "") + (closed && !b ? " closed" : "") + (isSel(c, h) ? " selected" : "");
+      const txt = closed && !b ? "Closed" : "₱" + (night ? NIGHT : DAY) + "/hr";
+      return `<td><button class="${cls}" data-c="${c}" data-h="${h}" ${b || closed ? "disabled" : ""}>${txt}</button></td>`;
+    }).join("");
+    return `<tr><td class="time">${label(h)}</td>${cells}</tr>`;
+  }).join("");
+
+  const list = [...booked].map(k => { const [c, h] = k.split("|"); return { c, h: +h }; })
+    .sort((a, b) => a.h - b.h || a.c.localeCompare(b.c));
+  $("bookedList").innerHTML = list.length
+    ? list.map(x => `<div><b>${x.c}</b> · ${label(x.h)}</div>`).join("")
+    : "No courts booked yet for this date.";
+  summary();
+}
+
+function summary() {
+  $("sumDate").textContent = new Date(date + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  if (sel.length) {
+    const s = [...sel].sort((a, b) => a.hour - b.hour || a.court.localeCompare(b.court));
+    $("sumSel").innerHTML = s.map(x => `${x.court} · ${label(x.hour)}`).join("<br>");
+    const total = sel.reduce((t, x) => t + (x.hour >= 18 ? NIGHT : DAY), 0);
+    const hasN = sel.some(x => x.hour >= 18), hasD = sel.some(x => x.hour < 18);
+    $("sumRate").textContent = hasN && hasD ? "Mixed" : "₱" + (hasN ? NIGHT : DAY) + "/hr";
+    $("sumHours").textContent = sel.length;
+    $("sumTotal").textContent = peso(total);
+  } else {
+    $("sumSel").textContent = "No slots selected";
+    $("sumRate").textContent = "—";
+    $("sumHours").textContent = "0";
+    $("sumTotal").textContent = peso(0);
+  }
+  ready();
+}
+
+function ready() {
+  $("bookBtn").disabled = !(sel.length && $("nameEl").value.trim() && $("phoneEl").value.trim().length >= 5 && $("refEl").value.trim());
+}
+
+$("qrToggle").onclick = () => {
+  const show = $("qrWrap").style.display === "none";
+  $("qrWrap").style.display = show ? "" : "none";
+  $("qrToggle").textContent = show ? "Hide QR Code" : "Show QR Code";
+};
+
+$("tbody").addEventListener("click", e => {
+  const b = e.target.closest("button.slot");
+  if (!b || b.disabled) return;
+  const court = b.dataset.c, hour = +b.dataset.h;
+  const i = sel.findIndex(s => s.court === court && s.hour === hour);
+  if (i >= 0) sel.splice(i, 1); else sel.push({ court, hour });
+  render();
+});
+
+function setDate(d, active) {
+  date = d; sel = [];
+  $("pickDate").value = d;
+  ["btnToday", "btnTomorrow"].forEach(id => $(id).classList.toggle("active", id === active));
+  $("msg").innerHTML = "";
+  load();
+}
+$("btnToday").onclick = () => setDate(manilaToday(), "btnToday");
+$("btnTomorrow").onclick = () => setDate(addDay(manilaToday(), 1), "btnTomorrow");
+$("pickDate").onchange = e => { if (e.target.value) setDate(e.target.value, null); };
+$("nameEl").addEventListener("input", ready);
+$("phoneEl").addEventListener("input", ready);
+$("refEl").addEventListener("input", ready);
+
+$("bookBtn").onclick = async () => {
+  const btn = $("bookBtn");
+  btn.disabled = true;
+  $("msg").innerHTML = "";
+  const slots = sel.map(s => ({ court: s.court, hour: s.hour }));
+  try {
+    const r = await fetch("/api/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date, name: $("nameEl").value, phone: $("phoneEl").value, gcashRef: $("refEl").value, slots })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 201) {
+      const list = [...slots].sort((a, b) => a.hour - b.hour || a.court.localeCompare(b.court)).map(x => `${x.court} · ${label(x.hour)}`).join(", ");
+      $("msg").innerHTML = `<div class="msg ok">Booked on ${date}: ${list}. Total ${peso(j.total)}. We'll confirm your GCash payment shortly.</div>`;
+      sel = []; $("nameEl").value = ""; $("phoneEl").value = ""; $("refEl").value = "";
+    } else if (r.status === 409) {
+      $("msg").innerHTML = '<div class="msg err">Someone just booked one of your slots. The grid is updated. Please pick again.</div>';
+    } else {
+      $("msg").innerHTML = `<div class="msg err">${(j.error || "Could not confirm. Try again.").replace(/</g, "&lt;")}</div>`;
+    }
+  } catch (e) {
+    $("msg").innerHTML = '<div class="msg err">No connection. Try again.</div>';
+  }
+  await load();
+};
+
+$("pickDate").min = manilaToday();
+$("pickDate").value = date;
+render();
+load();
+setInterval(() => { if (!document.hidden) load(); }, 5000);
+</script>
+</body>
+</html>

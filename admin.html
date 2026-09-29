@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Admin | LV Pickleball Village</title>
+<link rel="icon" href="/logo.jpg">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="brand">
+    <img src="/logo.jpg" alt="Logo">
+    <div><h1>LV Pickleball Village</h1><span>Management</span></div>
+  </header>
+
+  <div id="gate" class="gate">
+    <h2 style="color:#fff">Admin access</h2>
+    <p class="hint">Enter the staff passcode.</p>
+    <input class="field" type="password" id="pass" placeholder="Passcode" style="margin:14px 0">
+    <button class="btn" id="enter" style="margin:0">Enter</button>
+    <div id="gmsg" class="msg err" style="display:none"></div>
+  </div>
+
+  <div id="panel" style="display:none">
+    <div class="card">
+      <div class="bar">
+        <h2 style="margin:0">All bookings</h2>
+        <span style="flex:1"></span>
+        <a class="btn ghost" href="/" style="text-decoration:none">Booking page</a>
+        <button class="btn ghost" id="logout">Log out</button>
+      </div>
+      <div class="bar">
+        <input class="field" type="date" id="fDate">
+        <button class="btn ghost" id="fToday">Today</button>
+        <button class="btn ghost" id="fAll">All dates</button>
+        <button class="btn ghost" id="refresh">Refresh</button>
+        <span style="flex:1"></span>
+        <button class="btn" id="csv" style="margin:0;width:auto;padding:9px 16px">Export CSV</button>
+      </div>
+      <p class="hint" id="count" style="margin-bottom:10px"></p>
+      <div class="scroll">
+        <table class="atable">
+          <thead><tr><th>Date</th><th>Time</th><th>Court</th><th>Name</th><th>Phone</th><th>GCash Ref</th><th>Amount</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = h => ((h + 11) % 12 + 1) + ":00 " + (h % 24 < 12 ? "AM" : "PM");
+const label = h => fmt(h) + " – " + fmt((h + 1) % 24);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const manilaToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+
+let pass = sessionStorage.getItem("lvpass") || "", rows = [];
+
+async function api(path, opt = {}) {
+  const r = await fetch(path, { ...opt, headers: { "x-admin-passcode": pass, ...(opt.headers || {}) } });
+  if (r.status === 401) { logout(); throw new Error("auth"); }
+  return r.json();
+}
+
+function logout() {
+  pass = ""; sessionStorage.removeItem("lvpass");
+  $("panel").style.display = "none"; $("gate").style.display = "";
+}
+
+async function loadRows() {
+  const d = $("fDate").value;
+  const j = await api("/api/admin" + (d ? "?date=" + d : ""));
+  rows = j.bookings || [];
+  $("rows").innerHTML = rows.length ? rows.map(b => `<tr>
+    <td>${esc(b.date)}</td><td>${label(b.hour)}</td><td>${esc(b.court)}</td>
+    <td>${esc(b.name)}</td><td>${esc(b.phone)}</td><td>${esc(b.gcash_ref)}</td><td>₱${Number(b.amount).toFixed(2)}</td>
+    <td><button class="link" data-id="${b.id}">Cancel</button></td></tr>`).join("")
+    : '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:24px">No bookings.</td></tr>';
+  const total = rows.reduce((t, b) => t + Number(b.amount), 0);
+  $("count").textContent = rows.length + " booking" + (rows.length === 1 ? "" : "s") + " · ₱" + total.toFixed(2);
+}
+
+async function enter() {
+  $("gmsg").style.display = "none";
+  try {
+    await loadRows();
+    $("gate").style.display = "none"; $("panel").style.display = "";
+  } catch (e) {
+    if (e.message === "auth") { $("gmsg").textContent = "Incorrect passcode."; $("gmsg").style.display = ""; }
+  }
+}
+
+$("enter").onclick = () => { pass = $("pass").value; sessionStorage.setItem("lvpass", pass); enter(); };
+$("pass").addEventListener("keydown", e => { if (e.key === "Enter") $("enter").click(); });
+$("logout").onclick = logout;
+$("refresh").onclick = () => loadRows().catch(() => {});
+$("fDate").onchange = () => loadRows().catch(() => {});
+$("fToday").onclick = () => { $("fDate").value = manilaToday(); loadRows().catch(() => {}); };
+$("fAll").onclick = () => { $("fDate").value = ""; loadRows().catch(() => {}); };
+
+$("rows").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-id]");
+  if (!b || !confirm("Cancel this booking?")) return;
+  try { await api("/api/admin?id=" + b.dataset.id, { method: "DELETE" }); await loadRows(); } catch (err) {}
+});
+
+$("csv").onclick = () => {
+  const q = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const lines = [["Date", "Time", "Court", "Name", "Phone", "GCash Ref", "Amount"].join(",")]
+    .concat(rows.map(b => [b.date, q(label(b.hour)), b.court, q(b.name), q(b.phone), q(b.gcash_ref), Number(b.amount).toFixed(2)].join(",")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+  a.download = "lv-bookings.csv";
+  a.click();
+};
+
+if (pass) enter();
+</script>
+</body>
+</html>
