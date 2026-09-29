@@ -1,0 +1,12 @@
+{
+  "name": "lv-booking",
+  "version": "1.0.0",
+  "description": "LV Pickleball Village Court Booking System",
+  "private": true,
+  "scripts": {
+    "test": "echo \"No tests specified\""
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.4.1"
+  }
+}
