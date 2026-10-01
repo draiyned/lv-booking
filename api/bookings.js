@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
       for (const s of slots) {
         const hour = Number(s && s.hour);
         const court = s && s.court;
-        if (!COURTS.includes(court) || !Number.isInteger(hour) || hour < 6 || hour > 23)
+        if (!COURTS.includes(court) || !Number.isInteger(hour) || hour < 5 || hour > 22)
           return res.status(400).json({ error: "Bad slot." });
         if (date === today && hour < manilaHour())
           return res.status(400).json({ error: "That time has passed." });
@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
         rows.push({
           branch: BRANCH, date, court, hour,
           name: cleanName, phone: cleanPhone, gcash_ref: cleanRef,
-          amount: hour >= 18 ? RATES.night : RATES.day,
+          amount: hour >= 16 ? RATES.night : RATES.day,
         });
       }
 

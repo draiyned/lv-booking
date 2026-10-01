@@ -27,7 +27,7 @@
     <div class="banner">Tap any available time block to book. You may select multiple courts and hours.</div>
 
     <h3>Live court availability</h3>
-    <p class="hint">Open 6:00 AM to 12:00 AM. Night rate starts at 6 PM.</p>
+    <p class="hint">Open 5:00 AM to 11:00 PM. Night rate starts at 4 PM.</p>
     <div class="datebar">
       <button id="btnToday" class="active">Today</button>
       <button id="btnTomorrow">Tomorrow</button>
@@ -129,7 +129,7 @@ function render() {
   const nowH = manilaHour();
   $("thead").innerHTML = "<tr><th>Time</th>" + COURTS.map(c => "<th>" + c + "</th>").join("") + "</tr>";
   $("tbody").innerHTML = HOURS.map(h => {
-    const night = h >= 18;
+    const night = h >= 16;
     const closed = isToday && h < nowH;
     const cells = COURTS.map(c => {
       const b = booked.has(key(c, h));
@@ -153,8 +153,8 @@ function summary() {
   if (sel.length) {
     const s = [...sel].sort((a, b) => a.hour - b.hour || a.court.localeCompare(b.court));
     $("sumSel").innerHTML = s.map(x => `${x.court} · ${label(x.hour)}`).join("<br>");
-    const total = sel.reduce((t, x) => t + (x.hour >= 18 ? NIGHT : DAY), 0);
-    const hasN = sel.some(x => x.hour >= 18), hasD = sel.some(x => x.hour < 18);
+    const total = sel.reduce((t, x) => t + (x.hour >= 16 ? NIGHT : DAY), 0);
+    const hasN = sel.some(x => x.hour >= 16), hasD = sel.some(x => x.hour < 16);
     $("sumRate").textContent = hasN && hasD ? "Mixed" : "₱" + (hasN ? NIGHT : DAY) + "/hr";
     $("sumHours").textContent = sel.length;
     $("sumTotal").textContent = peso(total);

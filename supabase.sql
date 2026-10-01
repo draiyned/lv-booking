@@ -3,7 +3,7 @@ create table bookings (
   branch text not null default 'lv',
   date date not null,
   court text not null,
-  hour smallint not null check (hour between 6 and 23),
+  hour smallint not null check (hour between 5 and 22),
   name text not null,
   phone text not null,
   amount integer not null,
